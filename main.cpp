@@ -12,19 +12,26 @@
 #include <random>
 
 
-const bool doDebug = true;
+const bool doDebug = false;
 
 int_fast32_t playerCoordinateX = 5;
 int_fast32_t playerCoordinateY = 5;
 
 int_fast32_t playerScore = 0;
+int_fast32_t playerDirection = 0;
 
-const int_fast32_t consoleSizeX = 64;
-const int_fast32_t consoleSizeY = 32;
+int_fast32_t AISCore = 0;
 
-const int_fast32_t chronoSleep = 100;
+const int_fast32_t animationLifespan = 2;
+
+const int_fast32_t consoleSizeX = 16;
+const int_fast32_t consoleSizeY = 8;
+
+const int_fast32_t chronoSleep = 25;
 
 const int_fast32_t entities_on_map = 5;
+
+std::vector<std::vector<int_fast32_t>> playerAnimationArray = {};
 
 
 // * Hard level
@@ -112,7 +119,7 @@ int getIndexOfVectorValue(
 }
 
 
-void intersectionWithEntity(
+bool intersectionWithEntity(
 	std::vector<int_fast32_t>& entityY,
 	std::vector<int_fast32_t>& entityX,
 	int_fast32_t x,
@@ -132,9 +139,91 @@ void intersectionWithEntity(
 		{
 			entityY.erase(entityY.begin() + indexY);
 			entityX.erase(entityX.begin() + indexX);
-			playerScore++;
+			return true;
 		}
 	}
+	return false;
+}
+
+void playerAnimation()
+{
+	if (playerDirection == 4)
+	{
+		int_fast32_t playerCoordCopyX = playerCoordinateX;
+		int_fast32_t playerCoordCopyY = playerCoordinateY;
+		for (int_fast32_t i = 0; i < 3; i++)
+		{
+			playerAnimationArray.push_back(
+				std::vector<int_fast32_t> {i, playerCoordCopyX - i, playerCoordCopyY}
+			);
+		}
+	}
+	if (playerDirection == 1)
+	{
+		int_fast32_t playerCoordCopyX = playerCoordinateX;
+		int_fast32_t playerCoordCopyY = playerCoordinateY;
+		for (int_fast32_t i = 0; i < 3; i++)
+		{
+			playerAnimationArray.push_back(
+				std::vector<int_fast32_t> {i, playerCoordCopyX, playerCoordCopyY - i}
+			);
+		}
+	}
+	if (playerDirection == 2)
+	{
+		int_fast32_t playerCoordCopyX = playerCoordinateX;
+		int_fast32_t playerCoordCopyY = playerCoordinateY;
+		for (int_fast32_t i = 0; i < 3; i++)
+		{
+			playerAnimationArray.push_back(
+				std::vector<int_fast32_t> {i, playerCoordCopyX + i, playerCoordCopyY}
+			);
+		}
+	}
+	if (playerDirection == 0)
+	{
+		int_fast32_t playerCoordCopyX = playerCoordinateX;
+		int_fast32_t playerCoordCopyY = playerCoordinateY;
+		for (int_fast32_t i = 0; i < 3; i++)
+		{
+			playerAnimationArray.push_back(
+				std::vector<int_fast32_t> {i, playerCoordCopyX, playerCoordCopyY + i}
+			);
+		}
+	}
+}
+
+
+bool is_animated_point(
+	int_fast32_t x,
+	int_fast32_t y
+)
+{
+	for (int_fast32_t i = 0; i < playerAnimationArray.size(); i++)
+	{
+		std::vector<int_fast32_t> dataArray = playerAnimationArray[i];
+		int_fast32_t xFromArray = dataArray[1];
+		int_fast32_t yFromArray = dataArray[2];
+		if (x == xFromArray && y == yFromArray)
+			return true;
+	}
+	return false;
+}
+
+int_fast32_t getAnimationType(
+	int_fast32_t x,
+	int_fast32_t y
+) 
+{
+	for (int_fast32_t i = 0; i < playerAnimationArray.size(); i++)
+	{
+		std::vector<int_fast32_t> dataArray = playerAnimationArray[i];
+		int_fast32_t xFromArray = dataArray[1];
+		int_fast32_t yFromArray = dataArray[2];
+		if (x == xFromArray && y == yFromArray)
+			return dataArray[0];
+	}
+	return 90;
 }
 
 
@@ -145,40 +234,51 @@ void update_game_screen(
 	std::vector<int_fast32_t>& aiY
 )
 {
+	system("Color 0A");
 	system("cls");
 	for (int y = 0; y < consoleSizeY; y++) {
 		for (int x = 0; x < consoleSizeX; x++) {
 			if (x == playerCoordinateX && y == playerCoordinateY) 
 			{
-				intersectionWithEntity(
+				bool result = intersectionWithEntity(
 					entityY,
 					entityX,
 					x,
 					y
 				);
-				std::cout << "#";
+				if (result)
+					playerScore++;
+				std::wcout << ":|";
+				x++;
 			}
 			else if (is_entity(x, y, aiX, aiY))
 			{
-				intersectionWithEntity(
+				bool result = intersectionWithEntity(
 					entityY,
 					entityX,
 					aiX[0],
 					aiY[0]
 				);
-				std::cout << ":)";
+				if (result)
+					AISCore++;
+				std::wcout << ":|";
 				x++;
 			}
 			else if (is_entity(x, y, entityX, entityY)) {
-				std::cout << "$";
+				std::wcout << "$";
 			}
+			//else if (is_animated_point(x, y)) {
+				// int_fast32_t type = getAnimationType(x, y);
+			//	std::cout << "*";
+			//}
 			else {
-				std::cout << ".";
+				std::wcout << L".";
 			}
 		}
 		std::cout << std::endl;
 	}
 	std::cout << "PLAYER SCORE: " << playerScore << std::endl;
+	std::cout << "AI SCORE: " << AISCore << std::endl;
 	if (doDebug) {
 		std::cout << "PLAYER X: " << playerCoordinateX << std::endl;
 		std::cout << "PLAYER Y: " << playerCoordinateY << std::endl;
@@ -252,6 +352,7 @@ void controlls_handler(
 	{
 		if (move_is_available(true, false, false, false, pCoordX, pCoordY))
 		{
+			playerDirection = 0;
 			playerCoordinateY--;
 		}
 	}
@@ -259,6 +360,7 @@ void controlls_handler(
 	{
 		if (move_is_available(false, false, true, false, pCoordX, pCoordY))
 		{
+			playerDirection = 2;
 			playerCoordinateX--;
 		}
 	}
@@ -266,6 +368,7 @@ void controlls_handler(
 	{
 		if (move_is_available(false, true, false, false, pCoordX, pCoordY))
 		{
+			playerDirection = 1;
 			playerCoordinateY++;
 		}
 	}
@@ -273,6 +376,7 @@ void controlls_handler(
 	{
 		if (move_is_available(false, false, false, true, pCoordX, pCoordY))
 		{
+			playerDirection = 4;
 			playerCoordinateX++;
 		}
 	}
@@ -284,6 +388,7 @@ void controlls_handler(
 int main() 
 {
 
+	SetConsoleCP(65001);
 
 	if (playerCoordinateX >= consoleSizeX || playerCoordinateY >= consoleSizeY) {
 		std::string error = std::format(
@@ -303,13 +408,14 @@ int main()
 
 	std::vector<int_fast32_t> aiX = {};
 	std::vector<int_fast32_t> aiY = {};
-
+	
+	int i = 0;
 	while (true) 
 	{
 		spawn_ai(
 			aiX,
 			aiY
-		);
+		); 
 		spawn_random_entity(
 			entityX,
 			entityY
@@ -319,7 +425,7 @@ int main()
 			aiY,
 			entityX,
 			entityY
-		);
+		); 
 		controlls_handler(
 			playerCoordinateX,
 			playerCoordinateY
@@ -330,7 +436,14 @@ int main()
 			aiX, 
 			aiY
 		);
+		//playerAnimation();
+		if (i == animationLifespan)
+		{
+			i = 0;
+			playerAnimationArray.clear();
+		}
 		std::this_thread::sleep_for(std::chrono::milliseconds(chronoSleep));
+		i++;
 	}
 
 
