@@ -14,8 +14,7 @@
 
 const bool doDebug = false;
 
-int_fast32_t playerCoordinateX = 5;
-int_fast32_t playerCoordinateY = 5;
+bool endGame = false;
 
 int_fast32_t playerScore = 0;
 int_fast32_t playerDirection = 0;
@@ -24,18 +23,43 @@ int_fast32_t AISCore = 0;
 
 const int_fast32_t animationLifespan = 2;
 
-const int_fast32_t consoleSizeX = 16;
-const int_fast32_t consoleSizeY = 8;
+int_fast32_t consoleSizeX = 16;
+int_fast32_t consoleSizeY = 8;
 
-const int_fast32_t chronoSleep = 25;
+int_fast32_t chronoSleep = 55;
 
-const int_fast32_t entities_on_map = 5;
+int_fast32_t entities_on_map = 10;
+
+int_fast32_t aiDifficulty = 25; // less is simple
+
+
+int_fast32_t playerCoordinateX = 5;
+int_fast32_t playerCoordinateY = 5;
+
+int_fast32_t TotalScore = 50;
+
 
 std::vector<std::vector<int_fast32_t>> playerAnimationArray = {};
 
 
 // * Hard level
 // 1) Add multiplayer
+
+void _showStats()
+{
+	std::cout << "AI SCORE: " << AISCore << std::endl;
+	std::cout << "Your SCORE: " << playerScore << std::endl;
+}
+
+void finishGame()
+{
+	if (AISCore > playerScore)
+		std::cout << "ROBOTS win this time\n";
+		_showStats();
+		return;
+	std::cout << "HUMANS win robot! Very good\n";
+	_showStats();
+}
 
 
 int randint(int_fast32_t min, int_fast32_t max) {
@@ -111,7 +135,7 @@ int getIndexOfVectorValue(
 	{
 		// calculating the index
 		// of K
-		int index = it - vector.begin();
+		int_fast32_t index = it - vector.begin();
 		return index;
 	}
 
@@ -248,8 +272,14 @@ void update_game_screen(
 				);
 				if (result)
 					playerScore++;
-				std::wcout << ":|";
-				x++;
+				if (playerDirection == 0) // up
+					std::cout << "^";
+				if (playerDirection == 1) // down
+					std::cout << "V";
+				if (playerDirection == 2) // left 
+					std::cout << "<";
+				if (playerDirection == 4) // right 
+					std::cout << ">";
 			}
 			else if (is_entity(x, y, aiX, aiY))
 			{
@@ -261,8 +291,8 @@ void update_game_screen(
 				);
 				if (result)
 					AISCore++;
-				std::wcout << ":|";
-				x++;
+				std::wcout << "O";
+				//x++;
 			}
 			else if (is_entity(x, y, entityX, entityY)) {
 				std::wcout << "$";
@@ -276,6 +306,13 @@ void update_game_screen(
 			}
 		}
 		std::cout << std::endl;
+	}
+	if (endGame == true)
+	{
+		if (AISCore > playerScore)
+			std::cout << "ROBOTS win this time\n";
+		else
+			std::cout << "HUMANS win robot! Very good\n";
 	}
 	std::cout << "PLAYER SCORE: " << playerScore << std::endl;
 	std::cout << "AI SCORE: " << AISCore << std::endl;
@@ -322,6 +359,11 @@ void update_ai_position(
 	std::vector<int_fast32_t>& entityY
 )
 {
+	int randValue = randint(0, 100);
+	if (randValue >= aiDifficulty)
+	{
+		return;
+	}
 	if (aiX[0] - entityX[0] > 0)
 	{
 		//if (move_is_available(false, false, false, true, aiX[0], aiY[0]))
@@ -383,10 +425,42 @@ void controlls_handler(
 }
 
 
+void init_game()
+{
+
+	std::cout << "INIT CUSTOM PARAMS (0 = NO, 1 = YES): ";
+
+	int answer;
+	std::cin >> answer;
+
+	if (answer > 0)
+	{
+		std::cout << "CONSOLE X: \t";
+		std::cin >> consoleSizeX;
+
+		std::cout << "CONSOLE Y: \t";
+		std::cin >> consoleSizeY;
+
+		std::cout << "TICK-RATE (DEFAULT 25): \t";
+		std::cin >> chronoSleep;
+
+		std::cout << "ENTITIES ON MAP (default 5): \t";
+		std::cin >> entities_on_map;
+
+		std::cout << "AI DIFFICULTY (default 50): \t";
+		std::cin >> aiDifficulty;
+
+		std::cout << "TOTAL SCORE (default 50): \t";
+		std::cin >> TotalScore;
+	}
+
+}
 
 
 int main() 
 {
+
+	init_game();
 
 	SetConsoleCP(65001);
 
@@ -410,12 +484,16 @@ int main()
 	std::vector<int_fast32_t> aiY = {};
 	
 	int i = 0;
-	while (true) 
+
+	bool aiThreadCheckbox = false;
+	
+	int endIter = 0;
+	while (true)
 	{
 		spawn_ai(
 			aiX,
 			aiY
-		); 
+		);
 		spawn_random_entity(
 			entityX,
 			entityY
@@ -425,15 +503,15 @@ int main()
 			aiY,
 			entityX,
 			entityY
-		); 
+		);
 		controlls_handler(
 			playerCoordinateX,
 			playerCoordinateY
 		);
 		update_game_screen(
-			entityY, 
-			entityX, 
-			aiX, 
+			entityY,
+			entityX,
+			aiX,
 			aiY
 		);
 		//playerAnimation();
@@ -444,8 +522,15 @@ int main()
 		}
 		std::this_thread::sleep_for(std::chrono::milliseconds(chronoSleep));
 		i++;
-	}
-
+		if (AISCore > TotalScore || playerScore > TotalScore)
+		{
+			endGame = true;
+			endIter++;
+		};
+		if (endIter > 2) {
+			return 0;
+		}
+	};
 
 	return 0;
 }
